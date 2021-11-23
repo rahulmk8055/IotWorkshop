@@ -5,6 +5,35 @@
 var express    = require('express');        // call express
 var app        = express();                 // define our app using express
 var bodyParser = require('body-parser');
+
+var appWs = require('express-ws')(app);
+
+class Clients {
+    constructor(){
+      this.clientList = {};
+      this.saveClient = this.saveClient.bind(this);
+    }
+    saveClient(macid, client) {
+      this.clientList[macid] = client
+    }
+  }
+
+  const clients = new Clients();
+
+
+
+app.ws('/', function(ws, req) {
+    ws.on('message', function(msg) {
+      console.log(msg)
+      const parsedMsg = JSON.parse(msg);
+      console.log(parsedMsg.macId)
+      clients.saveClient(parsedMsg.macId,ws)
+     
+    });
+    console.log('socket', req.testing);
+  });
+  
+  
 // configure app to use bodyParser()
 // this will let us get the data from a POST
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -61,6 +90,49 @@ router.route('/device').get(function(req, res){
     res.json(obj);
 
 })
+
+router.route('/sendMessage').post(function(req, res){
+
+    console.log(req.body);
+
+    var macId = req.body.macId;
+    var device_name = req.body.deviceName;
+    var state  = req.body.state;
+
+    let obj = {
+        macId : macId,
+        device_name : device_name,
+        state : state
+    }
+    if (clients.clientList[macId] != undefined){
+        if (clients.clientList[macId].readyState == 1){
+            clients.clientList[macId].send(JSON.stringify(obj));
+        } else {
+            res.json("websocket disconnected")
+            return
+        }
+    res.json("message sent")
+    return
+    } else {
+        res.json("websocket connection does not exist")
+    }
+
+
+    
+})
+
+router.route('/connectedDevices').get(function(req, res){
+
+    const keys = Object.keys(clients.clientList); 
+    console.log(keys)
+    let obj = {
+        devies : keys
+    };
+    
+    res.json(obj);
+
+})
+
 // REGISTER OUR ROUTES -------------------------------
 // all of our routes will be prefixed with /api
 app.use('/api', router);
@@ -68,5 +140,5 @@ app.use('/api', router);
 
 // START THE SERVER
 // =============================================================================
-app.listen(port);
+server = app.listen(port);
 console.log('Magic happens on port ' + port);

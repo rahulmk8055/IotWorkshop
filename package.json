@@ -3,6 +3,8 @@
     "main": "server.js",
     "dependencies": {
         "body-parser": "^1.0.2",
-        "express": "~4.0.0"
+        "express": "~4.0.0",
+        "express-ws": "^5.0.2",
+        "ws": "^8.3.0"
     }
 }
