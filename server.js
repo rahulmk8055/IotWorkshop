@@ -13,11 +13,20 @@ class Clients {
     constructor(){
       this.clientList = {};
       this.registerClient = this.registerClient.bind(this);
+      this.deregisterClient = this.deregisterClient.bind(this);
     }
     registerClient(macid, client) {
       this.clientList[macid] = client
     }
+    deregisterClient(macid) {
+        delete this.clientList[macid];
+      }
   }
+
+let sensorState = {
+    temperature : 0,
+    humidity : 0
+}
 
 const clients = new Clients();
 
@@ -77,11 +86,37 @@ router.route('/connectedDevices').get(function(req, res){
     const keys = Object.keys(clients.clientList); 
     console.log(keys)
     let obj = {
-        devies : keys
+        devices : keys
     };
     res.json(obj);
 
 })
+
+router.route('/sensor').post(function(req, res){
+
+    var temperature = req.body.temperature;
+    var humidity = req.body.humidity;
+    console.log(req.body);
+    sensorState.temperature = temperature;
+    sensorState.humidity = humidity;
+    res.json("received data");
+
+})
+
+router.route('/sensor').get(function(req, res){
+
+    res.json(sensorState);
+
+})
+
+router.route("/deleteDevice").post(function (req, res) {
+    const macid = req.body.macid;
+    clients.deregisterClient(macid);
+    res.send({
+      msg: 'Mac Deleted',
+      devices: clients.clientList
+    })
+  });
 
 // REGISTER OUR ROUTES -------------------------------
 // all of our routes will be prefixed with /api
