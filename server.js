@@ -6,9 +6,11 @@ var express    = require('express');        // call express
 var app        = express();                 // define our app using express
 var bodyParser = require('body-parser');
 var cors = require('cors')
+var appWs = require('express-ws')(app);
+
 app.use(cors())
 
-var appWs = require('express-ws')(app);
+//this is related to Project 2 (Websocket Client List)
 class Clients {
     constructor(){
       this.clientList = {};
@@ -23,11 +25,13 @@ class Clients {
       }
   }
 
+// Varibale to store sensor State  
 let sensorState = {
     temperature : 0,
     humidity : 0
 }
 
+// create a instance of Client Object
 const clients = new Clients();
 
 // configure app to use bodyParser()
@@ -46,22 +50,50 @@ router.get('/', function(req, res) {
     res.json({ message: 'hooray! welcome to our api!' });
 });
 
-app.ws('/', function(ws, req) {
+
+
+/* ---------- Project 1 ------------------------------------------------*/
+// Sensor Data is Received here
+router.route('/sensor').post(function(req, res){
+
+  var temperature = req.body.temperature;
+  var humidity = req.body.humidity;
+  console.log("Received sensor data " + JSON.stringify(req.body));
+  sensorState.temperature = temperature;
+  sensorState.humidity = humidity;
+  res.json("received data in server from nodemcu");
+
+})
+
+// This API is used by FrontEnd
+router.route('/sensor').get(function(req, res){
+  
+  // console.log("Received Get request for sensor API!")
+  res.json(sensorState);
+
+})
+
+/* ---------- ------------------------------------------------*/
+
+
+
+
+/* ---------- Project 2 ------------------------------------------------*/
+
+app.ws('/register', function(ws, req) {
     ws.on('message', function(msg) {
-      console.log(msg)
       const parsedMsg = JSON.parse(msg);
-      console.log(parsedMsg.macId)
+      console.log("New Device Registering: " + msg);
       clients.registerClient(parsedMsg.macId,ws)
      
     });
-    console.log('socket', req.testing);
   });
+
   
 
 // Main API
-router.route('/sendMessage').post(function(req, res){
+router.route('/sendMessage').post(function(req, res) {
 
-    console.log(req.body);
 
     var macId = req.body.macId;
     var state  = req.body.state;
@@ -72,7 +104,8 @@ router.route('/sendMessage').post(function(req, res){
     }
     if (clients.clientList[macId] != undefined){
             clients.clientList[macId].send(JSON.stringify(obj));
-            res.json("message sent")
+            console.log("Sending message to device" + JSON.stringify(obj));
+            res.json("message sent");
             return
     } else {
             res.json("websocket connection does not exist")
@@ -84,28 +117,11 @@ router.route('/sendMessage').post(function(req, res){
 router.route('/connectedDevices').get(function(req, res){
 
     const keys = Object.keys(clients.clientList); 
-    console.log(keys)
     let obj = {
         devices : keys
     };
+    console.log("These are the connected devices " + JSON.stringify(obj))
     res.json(obj);
-
-})
-
-router.route('/sensor').post(function(req, res){
-
-    var temperature = req.body.temperature;
-    var humidity = req.body.humidity;
-    console.log(req.body);
-    sensorState.temperature = temperature;
-    sensorState.humidity = humidity;
-    res.json("received data");
-
-})
-
-router.route('/sensor').get(function(req, res){
-
-    res.json(sensorState);
 
 })
 
@@ -113,7 +129,7 @@ router.route("/deleteDevice").post(function (req, res) {
     const macid = req.body.macid;
     clients.deregisterClient(macid);
     res.send({
-      msg: 'Mac Deleted',
+      msg: 'MacId Deleted',
       devices: clients.clientList
     })
   });
